@@ -1,6 +1,13 @@
 package com.androidmage;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import edu.stanford.nlp.ling.CoreAnnotations;
+import edu.stanford.nlp.neural.rnn.RNNCoreAnnotations;
+import edu.stanford.nlp.pipeline.Annotation;
+import edu.stanford.nlp.pipeline.StanfordCoreNLP;
+import edu.stanford.nlp.sentiment.SentimentCoreAnnotations;
+import edu.stanford.nlp.trees.Tree;
+import edu.stanford.nlp.util.CoreMap;
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,11 +28,14 @@ public class RedditProducer {
 
     KafkaProducer<String, String> producer;
 
+    StanfordCoreNLP pipeline;
+
     private String url = "https://api.pushshift.io/reddit/search/comment/?subreddit=torontoraptors&after=1445m&before=1440m&size=100";
     private String topic = "reddit";
 
     public RedditProducer() {
         producer = createKafkaProducer();
+        this.pipeline = createPipeline();
     }
 //    @Scheduled(fixedRate = 1000)
 //    public void execute() {
@@ -34,22 +44,17 @@ public class RedditProducer {
 
     public void produceRedditData() {
         PushshiftList pushshiftList = restTemplate.getForObject(url, PushshiftList.class);
-        System.out.println(pushshiftList.toString());
-
         List<RedditComment> data = pushshiftList.getData();
 
         for (RedditComment comment : data) {
+            int score = calculateSentimentScore(comment);
+            comment.setSentiment_score(score);
             String jsonString = null;
             try {
                 // Java objects to JSON string - compact-print
                 jsonString = mapper.writeValueAsString(comment);
 
                 System.out.println(jsonString);
-
-//                // Java objects to JSON string - pretty-print
-//                String jsonInString2 = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(pushshiftList);
-//
-//                System.out.println(jsonInString2);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -65,6 +70,26 @@ public class RedditProducer {
                 });
             }
         }
+    }
+
+    public int calculateSentimentScore(RedditComment comment) {
+        String text = comment.getBody();
+        int totalSentiment = 0;
+        int numSentences = 0;
+        Annotation annotation = pipeline.process(text);
+        for (CoreMap sentence : annotation.get(CoreAnnotations.SentencesAnnotation.class)) {
+            Tree tree = sentence.get(SentimentCoreAnnotations.SentimentAnnotatedTree.class);
+            int sentiment = RNNCoreAnnotations.getPredictedClass(tree);
+            totalSentiment += sentiment;
+            numSentences++;
+        }
+        return (numSentences > 0) ? (totalSentiment / numSentences) : 2;
+    }
+
+    public StanfordCoreNLP createPipeline() {
+        Properties props = new Properties();
+        props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
+        return new StanfordCoreNLP(props);
     }
 
     public KafkaProducer<String, String> createKafkaProducer() {
