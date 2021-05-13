@@ -1,0 +1,12 @@
+# create reddit topic
+docker-compose exec kafka1 kafka-topics \
+  --create \
+  --bootstrap-server localhost:9092 \
+  --replication-factor 1 \
+  --partitions 1 \
+  --topic reddit
+
+# setup kafka connect sink for mongo db
+curl -d @<path-to-config file>/connect-mongodb-sink.json -H "Content-Type: application/json" -X POST http://localhost:8083/connectors
+
+curl -d @./connect-mongodb-sink.json -H "Content-Type: application/json" -X POST http://localhost:8083/connectors
