@@ -37,10 +37,6 @@ public class RedditProducer {
         producer = createKafkaProducer();
         this.pipeline = createPipeline();
     }
-//    @Scheduled(fixedRate = 1000)
-//    public void execute() {
-//        System.out.println("hey");
-//    }
 
     public void produceRedditData() {
         PushshiftList pushshiftList = restTemplate.getForObject(url, PushshiftList.class);

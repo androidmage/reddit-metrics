@@ -9,7 +9,7 @@ import java.time.ZoneId;
 public class RedditComment {
 
     private String body;
-    private String created_utc;
+    private Long created_utc;
     private int sentiment_score;
     private int hour;
 
@@ -24,13 +24,13 @@ public class RedditComment {
         this.body = body;
     }
 
-    public String getCreated_utc() {
+    public Long getCreated_utc() {
         return created_utc;
     }
 
-    public void setCreated_utc(String created_utc) {
+    public void setCreated_utc(Long created_utc) {
         this.created_utc = created_utc;
-        LocalDateTime date = Instant.ofEpochSecond(Long.parseLong(this.created_utc ))
+        LocalDateTime date = Instant.ofEpochSecond(this.created_utc)
                 .atZone(ZoneId.systemDefault())
                 .toLocalDateTime();
         this.setHour(date.getHour());
